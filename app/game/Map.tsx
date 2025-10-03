@@ -54,6 +54,8 @@ const MapClickHandler = ({
 };
 
 const Map = ({ currentAttraction, guess, onGuess, solutionVisible, roundIndex, difficulty }: MapProps) => {
+  const [canMount, setCanMount] = useState(false);
+
   const actualPosition = useMemo<LatLngLiteral>(() => {
     if (!currentAttraction) return warsawCenter;
     return { lat: currentAttraction.lat, lng: currentAttraction.lng };
@@ -83,6 +85,10 @@ const Map = ({ currentAttraction, guess, onGuess, solutionVisible, roundIndex, d
 
   const [routePoints, setRoutePoints] = useState<LatLngExpression[] | null>(null);
   const [routeDistance, setRouteDistance] = useState<number | null>(null);
+
+  useEffect(() => {
+    setCanMount(true);
+  }, []);
 
   useEffect(() => {
     if (!solutionVisible || !guess) {
@@ -168,8 +174,17 @@ const Map = ({ currentAttraction, guess, onGuess, solutionVisible, roundIndex, d
     [],
   );
 
+  if (!canMount) {
+    return <div className="h-full w-full" />;
+  }
+
+  if (!currentAttraction) {
+    return null;
+  }
+
   return (
     <MapContainer
+      key={`map-${difficulty}`}
       center={warsawCenter}
       zoom={12}
       minZoom={zoomLimits.min}

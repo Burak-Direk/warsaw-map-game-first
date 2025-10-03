@@ -1,9 +1,10 @@
-﻿// app/game/page.tsx
+// app/game/page.tsx
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
-import dynamic from 'next/dynamic';
+import NextDynamic from 'next/dynamic';
+import MapErrorBoundary from '../../components/MapErrorBoundary';
 import type { LatLngLiteral } from 'leaflet';
 import { useRouter } from 'next/navigation';
 import type { Attraction } from './data/attractions';
@@ -17,7 +18,9 @@ const TOTAL_ROUNDS = 10;
 const MAX_SCORE_PER_ROUND = 1000;
 const MAX_SCORE_TOTAL = TOTAL_ROUNDS * MAX_SCORE_PER_ROUND;
 
-const GameMap = dynamic(() => import('./Map'), { ssr: false });
+const GameMap = NextDynamic(() => import('./Map').then((m) => ({ default: m.default })), { ssr: false });
+
+export const dynamic = 'force-dynamic';
 
 const EARTH_RADIUS_KM = 6371;
 
@@ -50,7 +53,7 @@ type Difficulty = 'easy' | 'medium' | 'hard';
 
 const GamePage = () => {
   const router = useRouter();
-  const [rounds] = useState<Attraction[]>(() => getRandomAttractions(TOTAL_ROUNDS));
+  const [rounds, setRounds] = useState<Attraction[] | null>(null);
   const [roundIndex, setRoundIndex] = useState(0);
   const [guess, setGuess] = useState<LatLngLiteral | null>(null);
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
@@ -59,14 +62,19 @@ const GamePage = () => {
   const [roundTimeSec, setRoundTimeSec] = useState(10);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [showPreGame, setShowPreGame] = useState(true);
+  const [started, setStarted] = useState(false);
   const [timerRunning, setTimerRunning] = useState(false);
   const [roundKey, setRoundKey] = useState(0);
   const [roundTimedOut, setRoundTimedOut] = useState(false);
   const [showTimeoutToast, setShowTimeoutToast] = useState(false);
 
+  useEffect(() => {
+    setRounds(getRandomAttractions(TOTAL_ROUNDS));
+  }, []);
+
   const toastTimeoutRef = useRef<number | null>(null);
 
-  const currentAttraction = rounds[roundIndex];
+  const currentAttraction = rounds ? rounds[roundIndex] : null;
   const currentRoundNumber = roundIndex + 1;
   const hasGuessed = guess !== null;
   const isFinalRound = currentRoundNumber === TOTAL_ROUNDS;
@@ -100,7 +108,7 @@ const GamePage = () => {
     return null;
   }, [distanceKm, roundTimedOut, roundResolved]);
 
-  const factsEntry = useMemo(() => getAttractionFacts(currentAttraction.id), [currentAttraction.id]);
+  const factsEntry = useMemo(() => (currentAttraction ? getAttractionFacts(currentAttraction.id) : null), [currentAttraction?.id]);
 
   const startTimer = useCallback(() => {
     setTimerRunning(true);
@@ -132,7 +140,7 @@ const GamePage = () => {
 
 
   const handleGuess = (coordinates: LatLngLiteral) => {
-    if (hasGuessed || roundTimedOut || !timerRunning) return;
+    if (hasGuessed || roundTimedOut || !timerRunning || !currentAttraction) return;
 
     const actualPosition: LatLngLiteral = {
       lat: currentAttraction.lat,
@@ -206,7 +214,9 @@ const GamePage = () => {
     setRoundTimeSec(clamp(Math.round(value), 5, 60));
   };
 
-  const handleStartGame = () => {
+  const handleStart = () => {
+    if (started) return;
+
     clearToastTimeout();
     setRoundTimeSec((prev) => clamp(Math.round(prev), 5, 60));
     setShowPreGame(false);
@@ -214,8 +224,14 @@ const GamePage = () => {
     setRoundScore(null);
     setDistanceKm(null);
     setGuess(null);
-    startTimer();
+    setStarted(true);
+    setTimerRunning(true);
+    setRoundKey((prev) => prev + 1);
   };
+
+  if (!rounds) {
+    return <main className="p-6 text-slate-400">Preparing game...</main>;
+  }
 
   return (
     <main className="relative flex min-h-screen items-center justify-center px-4 py-12 sm:px-8">
@@ -372,7 +388,7 @@ const GamePage = () => {
               aria-hidden
             />
             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[2rem] border border-white/50 bg-slate-950/5 shadow-xl backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/40">
-              {!showPreGame && (
+              {started && (
                 <CountdownPill
                   seconds={roundTimeSec}
                   running={timerRunning}
@@ -381,13 +397,13 @@ const GamePage = () => {
                 />
               )}
 
-              {distancePrompt && (
+              {started && distancePrompt && (
                 <div className="pointer-events-none absolute inset-x-6 top-6 flex items-center justify-center rounded-full bg-white/85 px-4 py-2 text-sm font-medium text-slate-700 shadow-sm backdrop-blur-md dark:bg-slate-900/80 dark:text-slate-100">
                   {distancePrompt}
                 </div>
               )}
 
-              {!showPreGame && roundTimedOut && !hasGuessed && !timerRunning && (
+              {started && roundTimedOut && !hasGuessed && !timerRunning && (
                 <div className="pointer-events-none absolute inset-x-6 top-6 flex items-center justify-center rounded-full bg-white/85 px-4 py-2 text-sm font-medium text-rose-500 shadow-sm backdrop-blur-md dark:bg-slate-900/80">
                   Time's up! The real spot is highlighted.
                 </div>
@@ -397,18 +413,22 @@ const GamePage = () => {
                 <div className="timeout-toast">Time's up!</div>
               )}
 
-              {currentAttraction && !showPreGame && (
-                <GameMap
-                  currentAttraction={currentAttraction}
-                  guess={guess}
-                  onGuess={handleGuess}
-                  solutionVisible={hasGuessed || roundTimedOut}
-                  roundIndex={roundIndex}
-                  difficulty={difficulty}
-                />
+              {rounds && started ? (
+                <MapErrorBoundary>
+                  <GameMap
+                    currentAttraction={rounds[roundIndex]}
+                    guess={guess}
+                    onGuess={handleGuess}
+                    solutionVisible={hasGuessed || roundTimedOut}
+                    roundIndex={roundIndex}
+                    difficulty={difficulty}
+                  />
+                </MapErrorBoundary>
+              ) : (
+                <div className="grid h-full place-items-center text-slate-500">Map appears after Start</div>
               )}
 
-              {!showPreGame && !hasGuessed && !timerRunning && (
+              {started && !hasGuessed && !timerRunning && (
                 <div className="pointer-events-none absolute inset-x-6 bottom-6 flex items-center justify-center rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm backdrop-blur-md dark:bg-slate-900/80 dark:text-slate-200">
                   {roundTimedOut ? "Time's up! Review the answer and continue." : 'Click anywhere on the map to place your guess'}
                 </div>
@@ -450,7 +470,7 @@ const GamePage = () => {
                     </fieldset>
                     <button
                       type="button"
-                      onClick={handleStartGame}
+                      onClick={handleStart}
                       className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:shadow-blue-500/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                     >
                       Start game
@@ -467,11 +487,3 @@ const GamePage = () => {
 };
 
 export default GamePage;
-
-
-
-
-
-
-
-
