@@ -1,8 +1,8 @@
 // app/game/Map.tsx
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { Marker, Pane, TileLayer, ZoomControl, useMapEvent } from 'react-leaflet';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Marker, Pane, TileLayer, ZoomControl, useMapEvents } from 'react-leaflet';
 import type { LatLngExpression, LatLngLiteral } from 'leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -40,6 +40,9 @@ const haversineDistanceMeters = (a: LatLngLiteral, b: LatLngLiteral) => {
   return 2 * EARTH_RADIUS_METERS * Math.asin(Math.sqrt(Math.max(hav, 0)));
 };
 
+
+const DRAG_SUPPRESS_TIMEOUT_MS = 150;
+
 const MapClickHandler = ({
   onGuess,
   disabled,
@@ -47,16 +50,53 @@ const MapClickHandler = ({
   onGuess: (coords: LatLngLiteral) => void;
   disabled: boolean;
 }) => {
-  useMapEvent('click', (event) => {
-    if (disabled) return;
-    onGuess(event.latlng);
+  const suppressClickRef = useRef(false);
+  const releaseTimerRef = useRef<number | null>(null);
+
+  const clearReleaseTimer = useCallback(() => {
+    if (releaseTimerRef.current !== null) {
+      window.clearTimeout(releaseTimerRef.current);
+      releaseTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleRelease = useCallback(() => {
+    clearReleaseTimer();
+    releaseTimerRef.current = window.setTimeout(() => {
+      suppressClickRef.current = false;
+      releaseTimerRef.current = null;
+    }, DRAG_SUPPRESS_TIMEOUT_MS);
+  }, [clearReleaseTimer]);
+
+  useEffect(() => () => {
+    clearReleaseTimer();
+  }, [clearReleaseTimer]);
+
+  useMapEvents({
+    dragstart: () => {
+      suppressClickRef.current = true;
+      clearReleaseTimer();
+    },
+    moveend: () => {
+      if (suppressClickRef.current) {
+        scheduleRelease();
+      }
+    },
+    click: (event) => {
+      if (disabled || suppressClickRef.current) {
+        return;
+      }
+      clearReleaseTimer();
+      onGuess(event.latlng);
+    },
   });
+
   return null;
 };
 
+
 const Map = ({ currentAttraction, guess, onGuess, solutionVisible, roundIndex, difficulty }: MapProps) => {
   const [canMount, setCanMount] = useState(false);
-
   const actualPosition = useMemo<LatLngLiteral>(() => {
     if (!currentAttraction) return warsawCenter;
     return { lat: currentAttraction.lat, lng: currentAttraction.lng };
@@ -233,3 +273,5 @@ const Map = ({ currentAttraction, guess, onGuess, solutionVisible, roundIndex, d
 };
 
 export default Map;
+
+

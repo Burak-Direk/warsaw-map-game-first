@@ -43,7 +43,7 @@ const SafeMapContainer = forwardRef<LeafletMap | null, Props>(
           } catch {
             node._leaflet_id = undefined;
           }
-          node.replaceChildren();
+
         }
 
         const map = new LeafletMap(node, options);
@@ -96,3 +96,4 @@ const SafeMapContainer = forwardRef<LeafletMap | null, Props>(
 SafeMapContainer.displayName = 'SafeMapContainer';
 
 export default SafeMapContainer;
+
