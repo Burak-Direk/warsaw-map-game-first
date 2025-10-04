@@ -21,7 +21,7 @@ type Props = MapContainerProps & {
   children?: ReactNode;
 };
 
-const SafeMapContainer = forwardRef<LeafletMap | null, Props>(
+const SafeMapContainer = forwardRef<LeafletMap, Props>(
   (
     { bounds, boundsOptions, center, children, className, id, placeholder, style, whenReady, zoom, ...options },
     forwardedRef,
@@ -29,7 +29,7 @@ const SafeMapContainer = forwardRef<LeafletMap | null, Props>(
     const [context, setContext] = useState<LeafletContext>(null);
     const [staticProps] = useState(() => ({ className, id, style }));
 
-    useImperativeHandle(forwardedRef, () => context?.map ?? null, [context]);
+    useImperativeHandle(forwardedRef, () => context?.map as LeafletMap, [context]);
 
     const mapRef = useCallback(
       (node: LeafletContainerElement | null) => {
