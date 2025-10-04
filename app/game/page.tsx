@@ -294,6 +294,7 @@ const GamePage = () => {
 
   return (
     <main className="relative h-screen w-screen overflow-hidden bg-slate-950 text-white">
+      {/* Map container - force rebuild */}
       <div className="absolute inset-0">
         <MapErrorBoundary>
           <GameMap
