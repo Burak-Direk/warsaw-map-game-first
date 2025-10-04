@@ -138,7 +138,6 @@ export default function Map({
   // ✅ Only allow MapContainer to render after the first client effect
   const [canMount, setCanMount] = useState(false);
   useEffect(() => { setCanMount(true); }, []);
-  if (!canMount) return <div className="h-full w-full bg-gray-200 flex items-center justify-center">Loading...</div>;
 
   const actualPosition = useMemo<LatLngLiteral>(() => {
     if (!currentAttraction) return warsawCenter;
@@ -219,6 +218,10 @@ export default function Map({
       }),
     [],
   );
+
+  if (!canMount) {
+    return <div className="h-full w-full bg-gray-200 flex items-center justify-center">Loading...</div>;
+  }
 
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'absolute', top: 0, left: 0 }}>
