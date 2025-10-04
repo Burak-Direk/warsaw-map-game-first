@@ -1,13 +1,14 @@
-﻿// app/game/Map.tsx
+// app/game/Map.tsx
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { MapContainer, Marker, Pane, TileLayer, ZoomControl, useMapEvent } from 'react-leaflet';
+import { Marker, Pane, TileLayer, ZoomControl, useMapEvent } from 'react-leaflet';
 import type { LatLngExpression, LatLngLiteral } from 'leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Attraction } from './data/attractions';
 import SnakePolyline from '../../components/SnakePolyline';
+import SafeMapContainer from '../../components/SafeMapContainer';
 import { fetchRoute } from '../../lib/osrm';
 import type { LatLng } from '../../lib/osrm';
 import { warsawDistricts } from '../../data/warsawDistricts';
@@ -183,7 +184,7 @@ const Map = ({ currentAttraction, guess, onGuess, solutionVisible, roundIndex, d
   }
 
   return (
-    <MapContainer
+    <SafeMapContainer
       key={`map-${difficulty}`}
       center={warsawCenter}
       zoom={12}
@@ -227,7 +228,7 @@ const Map = ({ currentAttraction, guess, onGuess, solutionVisible, roundIndex, d
           )}
         </>
       )}
-    </MapContainer>
+    </SafeMapContainer>
   );
 };
 
