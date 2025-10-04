@@ -302,7 +302,6 @@ const GamePage = () => {
             onGuess={handleGuess}
             solutionVisible={hasGuessed || roundTimedOut}
             roundIndex={roundIndex}
-            difficulty={difficulty}
           />
         </MapErrorBoundary>
       </div>
