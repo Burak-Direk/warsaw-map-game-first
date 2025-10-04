@@ -1,15 +1,20 @@
-﻿// lib/confetti.ts
-let confettiModule: typeof import('canvas-confetti') | null = null;
-let loadingPromise: Promise<typeof import('canvas-confetti') | null> | null = null;
+// lib/confetti.ts
+type ConfettiModule = typeof import('canvas-confetti');
+type ConfettiModuleWithDefault = ConfettiModule & { default?: ConfettiModule };
 
-async function loadConfetti(): Promise<typeof import('canvas-confetti') | null> {
+let confettiModule: ConfettiModule | null = null;
+let loadingPromise: Promise<ConfettiModule | null> | null = null;
+
+async function loadConfetti(): Promise<ConfettiModule | null> {
   if (typeof window === 'undefined') return null;
   if (confettiModule) return confettiModule;
   if (!loadingPromise) {
     loadingPromise = import('canvas-confetti')
       .then((mod) => {
-        confettiModule = mod;
-        return mod;
+        const moduleWithDefault = mod as ConfettiModuleWithDefault;
+        const resolvedModule = moduleWithDefault.default ?? moduleWithDefault;
+        confettiModule = resolvedModule;
+        return resolvedModule;
       })
       .catch(() => null);
   }
@@ -17,10 +22,9 @@ async function loadConfetti(): Promise<typeof import('canvas-confetti') | null> 
 }
 
 async function fire(options: import('canvas-confetti').Options) {
-  const mod = await loadConfetti();
-  if (!mod) return;
-  const confetti = mod.default;
-  confetti(options);
+  const confetti = await loadConfetti();
+  if (!confetti) return;
+  void confetti(options);
 }
 
 export function celebratePerfect() {
@@ -44,4 +48,3 @@ export function celebrateGood() {
     origin: { y: 0.7 },
   });
 }
-
